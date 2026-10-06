@@ -1,0 +1,12 @@
+# Data files
+/Data
+/BaseKnowledge
+
+#cache
+/__pycache__
+
+#virtual environment
+/.venv
+
+# outputs   
+/outputs
