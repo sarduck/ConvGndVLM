@@ -1,8 +1,9 @@
 torch
+torchvision
 transformers
 accelerate
 bitsandbytes
 requests
 matplotlib
 Pillow
-
+numpy

@@ -5,6 +5,7 @@
 
 #cache
 /__pycache__
+/checkpoints
 
 #virtual environment
 /.venv
