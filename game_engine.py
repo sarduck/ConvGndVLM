@@ -61,20 +61,39 @@ class Agent:
         self.history = []
         self.current_round_guesses = None
         
-    def start_new_round(self, round_nr, images_list):
+    def start_new_round(self, round_nr, images_list, summary_text=None):
+        """
+        Prepare agent for a new round.
+
+        summary_text (str | None): If provided, an explicit prior-round context
+            block is injected into the round-start message.  Used by E2 to test
+            whether external memory scaffolding recovers cross-round compression.
+        """
         self.images_list = images_list
         self.current_round_guesses = None
-        
+
         if round_nr == 1:
             self.history = []
             self.history.append({
                 "role": "user",
-                "content": f"Round 1 begins. You are Player {self.name}. Start by describing one or more of your 3 images visually to your partner. Reply with a valid JSON object."
+                "content": (
+                    f"Round 1 begins. You are Player {self.name}. "
+                    "Start by describing one or more of your 3 images visually "
+                    "to your partner. Reply with a valid JSON object."
+                )
             })
         else:
+            context_block = ""
+            if summary_text:
+                context_block = f"\n\n{summary_text}\n"
             self.history.append({
                 "role": "user",
-                "content": f"Round {round_nr} begins with a new set of 3 images on your display. Some may have appeared in previous rounds. Continue communicating to identify which images are common (C) or different (D). Reply with a valid JSON object."
+                "content": (
+                    f"Round {round_nr} begins with a new set of 3 images on your display. "
+                    f"Some may have appeared in previous rounds.{context_block}"
+                    "Continue communicating to identify which images are common (C) or "
+                    "different (D). Reply with a valid JSON object."
+                )
             })
 
     def extract_json(self, response_text):
@@ -127,15 +146,112 @@ class Agent:
         self.history.append({"role": "user", "content": prompt_text})
 
 
-def play_round(round_setup, agent_A, agent_B, image_base_dir, round_nr, max_turns_per_round=6, verbose=True):
+# ---------------------------------------------------------------------------
+# E2 — History Ablation helpers
+# ---------------------------------------------------------------------------
+
+def extract_key_phrase(transcript, speaker_id, image_nr, max_words=12):
+    """
+    Find the first message by `speaker_id` that references "Image {image_nr}"
+    and return its first `max_words` words as a short label.
+
+    Parameters
+    ----------
+    transcript : list[dict]
+        Round transcript entries, each with keys "speaker" and "output".
+    speaker_id : str
+        "A" or "B".
+    image_nr : int
+        1, 2, or 3.
+    max_words : int
+        Maximum words to extract from the matching sentence.
+
+    Returns
+    -------
+    str
+        A short phrase, or "[not explicitly described]" if no match found.
+    """
+    target = f"Image {image_nr}"
+    for turn in transcript:
+        if turn.get("speaker") != speaker_id:
+            continue
+        msg = turn["output"].get("message", "")
+        if target not in msg:
+            continue
+        # Find the sentence containing the reference and trim it
+        for sentence in msg.replace(".", ". ").split(". "):
+            if target in sentence:
+                words = sentence.strip().split()
+                return " ".join(words[:max_words])
+    return "[not explicitly described]"
+
+
+def build_oracle_summary(prev_round_result, current_round_nr):
+    """
+    Build a deterministic, ground-truth-based summary of the previous round
+    for injection into the next round's context (E2 oracle condition).
+
+    Uses ground-truth labels (not agent guesses) so the summary is always
+    correct regardless of how well the agents performed.
+
+    Parameters
+    ----------
+    prev_round_result : dict
+        The round result dict returned by play_round().
+    current_round_nr : int
+        The round that is about to begin (used for the header label).
+
+    Returns
+    -------
+    str
+        A formatted context block ready to embed in a user message.
+    """
+    prev_nr = current_round_nr - 1
+    transcript = prev_round_result.get("transcript", [])
+
+    lines = [
+        f"=== SHARED CONTEXT FROM ROUND {prev_nr} ===",
+        "In the previous round, you and your partner established the following:",
+    ]
+
+    for agent_key, speaker_id in [("agent_A", "A"), ("agent_B", "B")]:
+        agent_info = prev_round_result.get(agent_key, {})
+        ground_truth = agent_info.get("ground_truth", [])
+        label = "your" if agent_key == "agent_A" else "your partner's"
+
+        for i, status in enumerate(ground_truth):
+            image_nr = i + 1
+            phrase = extract_key_phrase(transcript, speaker_id, image_nr)
+            status_word = "COMMON (C)" if status == "C" else "DIFFERENT (D) — unique to one player"
+            lines.append(f"  • Image {image_nr} ({label} list): {status_word}")
+            lines.append(f"    Previously described as: \"{phrase}\"")
+
+    lines += [
+        "",
+        "INSTRUCTION: You do NOT need to re-describe images already correctly identified.",
+        "Focus your discussion only on images whose status is still uncertain or new this round.",
+        "=" * 43,
+    ]
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Round and Game execution
+# ---------------------------------------------------------------------------
+
+def play_round(round_setup, agent_A, agent_B, image_base_dir, round_nr,
+               max_turns_per_round=6, verbose=True, summary_text=None):
     """
     Executes one round of PhotoBook:
     - Agents alternate turns until both submit non-null guesses or turn cap is reached.
+
+    summary_text (str | None): Optional prior-round context block injected at the
+        start of this round (E2 history ablation).  None = standard E1/E3 behaviour.
     """
     if verbose:
         print(f"\n>>> Starting Round {round_nr} <<<", flush=True)
-    agent_A.start_new_round(round_nr, round_setup["agent_A"]["images"])
-    agent_B.start_new_round(round_nr, round_setup["agent_B"]["images"])
+    agent_A.start_new_round(round_nr, round_setup["agent_A"]["images"], summary_text)
+    agent_B.start_new_round(round_nr, round_setup["agent_B"]["images"], summary_text)
     
     round_transcript = []
     
@@ -219,40 +335,73 @@ def play_round(round_setup, agent_A, agent_B, image_base_dir, round_nr, max_turn
     }
 
 
-def play_game(game_config, vlm_A, vlm_B, image_base_dir, max_rounds=3, prompt_type="engineered", verbose=True):
-    prompt = PROMPT_ENGINEERED if prompt_type == "engineered" else PROMPT_ORIGINAL
-    
+def play_game(game_config, vlm_A, vlm_B, image_base_dir, max_rounds=3, prompt_type="engineered",
+              verbose=True, prompt_override=None, max_turns_per_round=6, summary_mode="none"):
+    """
+    Play a full multi-round PhotoBook game.
+
+    Parameters
+    ----------
+    prompt_override : str | None
+        If provided, used as the system prompt template instead of prompt_type.
+    max_turns_per_round : int
+        Safety cap on turns per round. Raise to 15 for E3 token-budget runs.
+    summary_mode : str
+        Controls inter-round memory scaffolding (E2 experiment):
+          "none"   — standard behaviour, no extra context (E1 / E3 baseline)
+          "oracle" — inject a deterministic ground-truth summary before each round
+          "llm"    — (future) inject a model-generated summary
+    """
+    if prompt_override is not None:
+        prompt = prompt_override
+    else:
+        prompt = PROMPT_ENGINEERED if prompt_type == "engineered" else PROMPT_ORIGINAL
+
     agent_A = Agent("A", vlm_A, prompt)
     agent_B = Agent("B", vlm_B, prompt)
-    
+
     num_rounds = min(max_rounds, len(game_config["rounds"]))
     completed_rounds = []
     total_score = 0
     full_transcript = []
-    
+
+    prev_round_result = None
+
     for r_idx in range(num_rounds):
         round_setup = game_config["rounds"][r_idx]
+
+        # Build inter-round summary for rounds 2 and 3
+        summary_text = None
+        if summary_mode != "none" and prev_round_result is not None:
+            if summary_mode == "oracle":
+                summary_text = build_oracle_summary(prev_round_result, r_idx + 1)
+            # "llm" mode reserved for future extension
+
         round_res = play_round(
             round_setup=round_setup,
             agent_A=agent_A,
             agent_B=agent_B,
             image_base_dir=image_base_dir,
             round_nr=r_idx + 1,
-            verbose=verbose
+            max_turns_per_round=max_turns_per_round,
+            verbose=verbose,
+            summary_text=summary_text,
         )
         completed_rounds.append(round_res)
         total_score += round_res["round_score"]
         full_transcript.extend(round_res["transcript"])
-        
+        prev_round_result = round_res
+
     if verbose:
         print(f"=== Game {game_config['game_id']} Completed! Total Score: {total_score}/{num_rounds * 6} ===", flush=True)
-    
+
     return {
         "game_id": game_config["game_id"],
         "num_rounds": num_rounds,
         "total_score": total_score,
         "max_score": num_rounds * 6,
         "transcript": full_transcript,
-        "rounds": completed_rounds
+        "rounds": completed_rounds,
+        "summary_mode": summary_mode,
     }
 

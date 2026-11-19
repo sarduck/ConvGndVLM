@@ -12,3 +12,17 @@
 
 # outputs   
 /outputs
+
+# Extra files
+quickglance.md
+REPORT.md
+
+# Experiment outputs 
+/Experiments/output_E_1/*
+!/Experiments/output_E_1/.gitkeep
+
+/Experiments/output_E_2/*
+!/Experiments/output_E_2/.gitkeep
+
+/Experiments/output_E_3/*
+!/Experiments/output_E_3/.gitkeep

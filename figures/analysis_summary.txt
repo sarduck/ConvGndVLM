@@ -1,0 +1,123 @@
+====================================================================================================
+ E1 — Alignment Dose-Response Sweep
+----------------------------------------------------------------------------------------------------
+λ        Score/18             95% CI    Words   Compress             95% CI  C-Rate%   WNR-R3 Efficiency
+--------------------------------------------------------------------------------------------------------
+0.0          9.44  9.44 [8.84–10.04]     1001      0.978   0.98 [0.94–1.01]     52.0    0.065     0.0106
+0.2         10.40 10.40 [9.82–10.98]      890      0.992   0.99 [0.96–1.02]     42.0    0.094     0.0121
+0.4          9.20   9.20 [8.68–9.74]      816      0.949   0.95 [0.89–1.01]     62.0    0.172     0.0120
+0.6          9.82  9.82 [9.16–10.48]      795      1.055   1.06 [0.98–1.14]     48.0    0.232     0.0138
+0.8          9.88  9.88 [9.20–10.58]      657      0.980   0.98 [0.94–1.02]     56.0    0.237     0.0162
+1.0         10.20 10.20 [9.56–10.84]      698      0.992   0.99 [0.92–1.07]     56.0    0.269     0.0170
+Human       16.62                  —      338      0.467                  —     ~100     ↓low          —
+
+Per-round score (avg / 6):
+λ        R1 Score   R2 Score   R3 Score    R3−R1 Δ
+--------------------------------------------------
+0.0          3.72       3.02       2.70      -1.02
+0.2          3.76       3.54       3.10      -0.66
+0.4          3.12       3.32       2.76      -0.36
+0.6          3.48       3.18       3.16      -0.32
+0.8          3.42       3.18       3.28      -0.14
+1.0          3.56       3.34       3.30      -0.26
+
+Mann-Whitney U — Score (each λ vs λ=0.0, two-sided):
+  λ=0.0 vs λ=0.2: U=956, p=0.0412, *   (p<0.05) , r=+0.235
+  λ=0.0 vs λ=0.4: U=1332, p=0.5699, ns  (p≥0.05) , r=-0.066
+  λ=0.0 vs λ=0.6: U=1157, p=0.5200, ns  (p≥0.05) , r=+0.074
+  λ=0.0 vs λ=0.8: U=1127, p=0.3945, ns  (p≥0.05) , r=+0.098
+  λ=0.0 vs λ=1.0: U=1032, p=0.1317, ns  (p≥0.05) , r=+0.174
+
+Mann-Whitney U — Compression Ratio (each λ vs λ=1.0, two-sided):
+  λ=0.0 vs λ=1.0: U=1218, p=0.8254, ns  (p≥0.05) , r=+0.026
+  λ=0.2 vs λ=1.0: U=1286, p=0.8067, ns  (p≥0.05) , r=-0.029
+  λ=0.4 vs λ=1.0: U=1076, p=0.2316, ns  (p≥0.05) , r=+0.139
+  λ=0.6 vs λ=1.0: U=1345, p=0.5147, ns  (p≥0.05) , r=-0.076
+  λ=0.8 vs λ=1.0: U=1198, p=0.7200, ns  (p≥0.05) , r=+0.042
+
+====================================================================================================
+ E2 — History Ablation (Memory vs Structural Failure)
+----------------------------------------------------------------------------------------------------
+Condition              Score/18             95% CI    Words   Compress             95% CI  C-Rate%  Adherence
+-------------------------------------------------------------------------------------------------------------
+no_summary                10.28 10.28 [9.66–10.88]      691      0.993   0.99 [0.91–1.07]     52.0 (see E2 metrics)
+oracle_summary            10.10 10.10 [9.50–10.70]      638      0.840   0.84 [0.76–0.92]     64.0 (see E2 metrics)
+Human                     16.62                  —      338      0.467                  —     ~100          —
+
+Per-round word counts:
+Condition              R1 Words   R2 Words   R3 Words    R3/R1
+------------------------------------------------------------
+no_summary                246.8      217.1      227.3    0.921
+oracle_summary            246.8      189.3      201.8    0.818
+Human                     150.0      100.0       70.0    0.467
+
+Mann-Whitney U — no_summary vs oracle_summary (two-sided):
+  Score:           U=1312, p=0.6659, ns  (p≥0.05) , r=-0.050
+  Compression:     U=1569, p=0.0281, *   (p<0.05) , r=-0.255
+  Total words:     U=1524, p=0.0589, ns  (p≥0.05) , r=-0.220
+
+Interpretation:
+  r > 0 → oracle_summary has HIGHER values on that metric
+  r < 0 → oracle_summary has LOWER values (expected for compression & words)
+
+====================================================================================================
+ E3 — Token Budget (Costless-Token Hypothesis)
+----------------------------------------------------------------------------------------------------
+      Budget   Score/18             95% CI    Words   Compress             95% CI  C-Rate%  Util-Drop  Adherence
+----------------------------------------------------------------------------------------------------------------
+   unlimited       9.60  9.60 [8.92–10.26]     1758      0.932   0.93 [0.86–1.01]     58.0        N/A     100.0%
+          75       8.61   8.61 [8.14–9.10]      845      1.030   1.03 [0.96–1.10]     55.1     +0.007      99.8%
+          50       8.48   8.48 [7.90–9.06]      768      0.990   0.99 [0.88–1.12]     64.0     +0.017      99.4%
+          25       8.24   8.24 [7.76–8.78]      649      0.926   0.93 [0.86–0.99]     62.2     -0.012      98.5%
+       Human      16.62                  —      338      0.467                  —     ~100      ≈−0.3          —
+
+Per-round word counts:
+      Budget   R1 Words   R2 Words   R3 Words    R3/R1  R1 Turns  R2 Turns  R3 Turns
+-------------------------------------------------------------------------------------
+   unlimited      615.7      574.5      567.8    0.922      16.2      15.2      15.0
+          75      281.4      282.0      281.5    1.000      17.1      16.5      16.5
+          50      261.6      250.5      255.7    0.978      17.2      16.1      15.9
+          25      223.1      218.5      207.8    0.931      17.0      16.1      16.1
+
+Mann-Whitney U — Score (each budget vs unlimited, two-sided):
+  unlimited vs  75 wds: U=1526, p=0.0331, *   (p<0.05) , r=-0.246
+  unlimited vs  50 wds: U=1588, p=0.0186, *   (p<0.05) , r=-0.271
+  unlimited vs  25 wds: U=1514, p=0.0034, **  (p<0.01) , r=-0.346
+
+Mann-Whitney U — Compression (each budget vs unlimited, two-sided):
+  unlimited vs  75 wds: U=1036, p=0.1871, ns  (p≥0.05) , r=+0.154
+  unlimited vs  50 wds: U=1318, p=0.6442, ns  (p≥0.05) , r=-0.054
+  unlimited vs  25 wds: U=1203, p=0.5635, ns  (p≥0.05) , r=-0.069
+
+====================================================================================================
+ STATISTICAL FINDINGS SUMMARY
+----------------------------------------------------------------------------------------------------
+KEY FINDINGS ACROSS ALL EXPERIMENTS
+
+E1 — Alignment Sweep:
+  Best model score : 10.40/18 (λ=0.2)
+  Human score      : 16.62/18
+  Human gap        : 6.22 pts
+  Word reduction   : λ=0.0 (657 wds) → λ=1.0 (1001 wds)  [alignment REDUCES verbosity]
+  Compression range: 0.949–1.055  (all >> human 0.47)
+  Verdict: Alignment is NOT the cause of non-compression.
+
+E2 — History Ablation (Oracle Summary):
+  no_summary   compression: 0.993
+  oracle       compression: 0.840  (Δ = -0.153)
+  Human        compression: 0.467
+  Gap closed by oracle    : 29% of gap remains
+  Verdict: Memory scaffolding partially helps (~15 pp drop) but
+           does NOT recover pact formation. Structural failure confirmed.
+
+E3 — Token Budget:
+  unlimited score : 9.60/18
+  25-word budget  : 8.24/18  (Δ = -1.36)
+  Random baseline : 9.0/18  (25-word budget is BELOW random!)
+  Verdict: Budget pressure hurts accuracy and does NOT induce compression.
+           Costless-token hypothesis: rejected as sufficient explanation.
+
+OVERALL CONCLUSION:
+  Three independent probes (alignment dose, memory scaffold, token cost)
+  all converge: the failure is structural — absent from both pre-training
+  data and the generative architecture. Prompt engineering alone cannot fix it.

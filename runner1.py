@@ -6,9 +6,9 @@ Executes the dose-response alignment experiment across lambda interpolation valu
 with real-time tqdm progress bars, incremental autosaving, and memory management.
 
 Usage:
-    .venv/bin/python runner.py
-    .venv/bin/python runner.py --lambda_values 0.0,0.5,1.0 --num_games 10
-    .venv/bin/python runner.py --verbose  # To print turn-by-turn dialogue
+    .venv/bin/python runner1.py
+    .venv/bin/python runner1.py --lambda_values 0.0,0.5,1.0 --num_games 10
+    .venv/bin/python runner1.py --verbose  # To print turn-by-turn dialogue
 """
 
 import os
@@ -61,8 +61,8 @@ def parse_args():
                         help="Resume from existing partial outputs in output_dir instead of restarting")
     parser.add_argument("--data_dir", type=str, default="Data",
                         help="Path to PhotoBook Data directory (default: Data)")
-    parser.add_argument("--output_dir", type=str, default="outputs",
-                        help="Path to directory for saving results (default: outputs)")
+    parser.add_argument("--output_dir", type=str, default="Experiments/output_E_1",
+                        help="Path to directory for saving results (default: Experiments/output_E_1)")
     
     return parser.parse_args()
 
@@ -254,9 +254,9 @@ def main():
         print(f"{stat['lambda']:<10.2f} | {stat['games']:<18} | {stat['avg_score']:<16.2f}")
     print("=" * 60)
     print(f"All outputs saved in: {args.output_dir}/")
-    print("\nNext steps:")
-    print("  Run metrics:   .venv/bin/python metrics.py --results_dir outputs/")
-    print("  Plot curves:   .venv/bin/python analyze_results.py --results_dir outputs/")
+    print(f"\nNext steps:")
+    print(f"  Run metrics:   .venv/bin/python metrics.py --results_dir {args.output_dir}/")
+    print(f"  Plot curves:   .venv/bin/python analyze_results.py --e1_dir {args.output_dir}/")
     print("=" * 60 + "\n")
 
 
